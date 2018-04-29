@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"os/user"
 	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/zengabor/skv"
 )
@@ -17,6 +19,7 @@ const (
 	version = "1.0"
 	subdir  = ".gohtml"
 	file    = "gohtml.db"
+	execute = "/usr/bin/touch"
 )
 
 type Association struct {
@@ -60,16 +63,17 @@ func main() {
 	case "help":
 		Help()
 	default:
-		fmt.Printf("gohtml: unknown command '%s'\n", os.Args[1])
+		log.Fatal("gohtml: unknown command '%s'\n", os.Args[1])
 	}
 }
 
 func Set(goFile string, templates []string) {
+	goFile = getFullPath(goFile)
+	templates = getFullPaths(templates)
 	store, err := skv.Open(dbFileName)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer store.Close()
 	templatesToProcess := append([]string(nil), templates...)
 	var toUpdate []*Association
 	store.ForEach(func(k, v []byte) error {
@@ -78,6 +82,7 @@ func Set(goFile string, templates []string) {
 		var goFiles []string
 		d := gob.NewDecoder(bytes.NewReader(v))
 		if err := d.Decode(&goFiles); err != nil {
+			store.Close()
 			log.Fatal(err)
 		}
 		if isInSlice(templates, templateFileName) {
@@ -97,14 +102,17 @@ func Set(goFile string, templates []string) {
 	for _, t := range toUpdate {
 		if len(t.GoFileNames) == 0 {
 			if err := store.Delete(t.TemplateFileName); err != nil {
+				store.Close()
 				log.Fatal(err)
 			}
 			continue
 		}
 		if err := store.Put(t.TemplateFileName, t.GoFileNames); err != nil {
+			store.Close()
 			log.Fatal(err)
 		}
 	}
+	store.Close()
 }
 
 func Run(templateFileName string) {
@@ -112,9 +120,9 @@ func Run(templateFileName string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer store.Close()
+	t := getFullPath(templateFileName)
 	var goFiles []string
-	err = store.Get(templateFileName, &goFiles)
+	err = store.Get(t, &goFiles)
 	if err == skv.ErrNotFound {
 		store.Close()
 		log.Fatal("gohtml: template not set")
@@ -124,15 +132,33 @@ func Run(templateFileName string) {
 		log.Fatal(err)
 	}
 	for _, g := range goFiles {
-		fmt.Printf("running %+v", g)
-		cmd := exec.Command("go " + g)
+		cmd := exec.Command(execute + " " + g)
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		if err := cmd.Run(); err != nil {
+			store.Close()
 			log.Fatal(err)
 		}
-		fmt.Printf(": %q\n", out.String())
+		fmt.Println(out.String())
 	}
+	store.Close()
+}
+
+func Help() {
+	fmt.Printf(`gohtml %s - Sets associations between go files and templates, so when you invoke it with the path to a template it will touch the associated go files so that the build process can pick them up. Associations are stored in %s
+
+Usage: gohtml <command> <args>
+
+Available commands:
+  set   Associates a go file with templates. Obsolete associations are removed.
+  run   Runs the go files that are associated with the template.
+  help  Prints this screen.
+
+Examples:
+  gothml set path/index.go one.gohtml b/two.gohtml
+  gohtml run b/two.gohtml
+
+`, version, dbFileName)
 }
 
 func isInSlice(s []string, v string) bool {
@@ -162,19 +188,25 @@ func cleanSlice(s []string, v string) []string {
 	return s
 }
 
-func Help() {
-	fmt.Printf(`gohtml %s - Sets associations between go files and templates. Invoke gohtml with the path to a template and it will run the associated go files. Associations are stored in %s
+func getFullPath(pathToFile string) string {
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if !strings.HasPrefix(pathToFile, "/") {
+		pathToFile = path.Join(workingDirectory, pathToFile)
+	}
+	s, err := filepath.Abs(pathToFile)
+	if err != nil {
+		log.Printf("gohtml: could not resolve full path: %s\n", err)
+	}
+	return s
+}
 
-Usage: gohtml <command> <args>
-
-Available commands:
-  set   Associates a go file with templates. Earlier associations are deleted.
-  run   Runs the go files that are associated with the template.
-  help  Prints this screen.
-
-Examples:
-  gothml set path/index.go one.gohtml b/two.gohtml
-  gohtml run b/two.gohtml
-
-`, version, dbFileName)
+func getFullPaths(pathToFiles []string) []string {
+	var results []string
+	for _, p := range pathToFiles {
+		results = append(results, getFullPath(p))
+	}
+	return results
 }
