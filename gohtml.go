@@ -203,10 +203,9 @@ func getFullPath(pathToFile string) string {
 	return s
 }
 
-func getFullPaths(pathToFiles []string) []string {
-	var results []string
+func getFullPaths(pathToFiles []string) (results []string) {
 	for _, p := range pathToFiles {
 		results = append(results, getFullPath(p))
 	}
-	return results
+	return
 }
