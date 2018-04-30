@@ -1,4 +1,4 @@
-package main
+package gohtml
 
 import (
 	"bytes"
@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	version       = "1.0"
 	subdir        = ".gohtml"
 	file          = "gohtml.db"
 	handleCommand = "/usr/bin/touch"
@@ -27,7 +26,7 @@ type Association struct {
 	GoFileNames      []string
 }
 
-var dbFileName = ""
+var DBFileName = ""
 
 func init() {
 	usr, err := user.Current()
@@ -38,50 +37,41 @@ func init() {
 	if err = os.MkdirAll(dir, os.ModePerm); err != nil {
 		log.Fatal(err)
 	}
-	dbFileName = path.Join(dir, file)
+	DBFileName = path.Join(dir, file)
 }
 
-func main() {
-	command := "help"
-	if len(os.Args) == 2 && os.Args[1] != "help" {
-		log.Fatal("gohtml: invalid number of arguments")
+func GetAll() (associations []*Association) {
+	store, err := skv.Open(DBFileName)
+	if err != nil {
+		log.Fatal(err)
 	}
-	if len(os.Args) >= 3 {
-		command = os.Args[1]
-	}
-	switch command {
-	case "set":
-		if len(os.Args) < 4 {
-			log.Fatal("gohtml: provide at least one template file name to set")
+	store.ForEach(func(k, v []byte) error {
+		var goFiles []string
+		d := gob.NewDecoder(bytes.NewReader(v))
+		if err := d.Decode(&goFiles); err != nil {
+			store.Close()
+			log.Fatal(err)
 		}
-		Set(os.Args[2], os.Args[3:])
-	case "handle":
-		if len(os.Args) != 3 {
-			log.Fatal("gohtml: provide exactly one template file name for handle")
-		}
-		Handle(os.Args[2])
-	case "help":
-		Help()
-	default:
-		log.Fatal("gohtml: unknown command '%s'\n", os.Args[1])
-	}
+		associations = append(associations, &Association{string(k), goFiles})
+		return nil
+	})
+	store.Close()
+	return
 }
 
 func Set(goFile string, templates []string) {
 	goFile = getFullPath(goFile)
 	templates = getFullPaths(templates)
-	store, err := skv.Open(dbFileName)
+	store, err := skv.Open(DBFileName)
 	if err != nil {
 		log.Fatal(err)
 	}
 	templatesToProcess := append([]string(nil), templates...)
 	var toUpdate []*Association
 	store.ForEach(func(k, v []byte) error {
-		templateFileName := string(k)
+		templateFileName, goFiles, err := decode(k, v)
 		templatesToProcess = cleanSlice(templatesToProcess, templateFileName)
-		var goFiles []string
-		d := gob.NewDecoder(bytes.NewReader(v))
-		if err := d.Decode(&goFiles); err != nil {
+		if err != nil {
 			store.Close()
 			log.Fatal(err)
 		}
@@ -89,34 +79,53 @@ func Set(goFile string, templates []string) {
 			if added := appendIfNecessary(goFiles, goFile); len(added) > len(goFiles) {
 				toUpdate = append(toUpdate, &Association{templateFileName, added})
 			}
-		} else {
-			if cleaned := cleanSlice(goFiles, goFile); len(cleaned) < len(goFiles) {
-				toUpdate = append(toUpdate, &Association{templateFileName, cleaned})
-			}
+		} else if cleaned := cleanSlice(goFiles, goFile); len(cleaned) < len(goFiles) {
+			toUpdate = append(toUpdate, &Association{templateFileName, cleaned})
 		}
 		return nil
 	})
 	for _, t := range templatesToProcess {
 		toUpdate = append(toUpdate, &Association{t, []string{goFile}})
 	}
-	for _, t := range toUpdate {
-		if len(t.GoFileNames) == 0 {
-			if err := store.Delete(t.TemplateFileName); err != nil {
-				store.Close()
-				log.Fatal(err)
-			}
-			continue
-		}
-		if err := store.Put(t.TemplateFileName, t.GoFileNames); err != nil {
+	err = updateAssociations(store, toUpdate)
+	store.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func Unset(toBeRemoved string) {
+	tbr := getFullPath(toBeRemoved)
+	store, err := skv.Open(DBFileName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var toUpdate []*Association
+	store.ForEach(func(k, v []byte) error {
+		templateFileName, goFiles, err := decode(k, v)
+		if err != nil {
 			store.Close()
 			log.Fatal(err)
 		}
-	}
+		log.Printf(">>>>>> %v >>> %+v\n", templateFileName, goFiles)
+		if templateFileName == tbr {
+			toUpdate = append(toUpdate, &Association{templateFileName, []string{}})
+			log.Println("removing " + templateFileName)
+		} else if isInSlice(goFiles, tbr) {
+			toUpdate = append(toUpdate, &Association{templateFileName, cleanSlice(goFiles, tbr)})
+			log.Printf("cleaned: %+v\n", cleanSlice(goFiles, tbr))
+		}
+		return nil
+	})
+	err = updateAssociations(store, toUpdate)
 	store.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func Handle(templateFileName string) {
-	store, err := skv.OpenReadOnly(dbFileName)
+	store, err := skv.OpenReadOnly(DBFileName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -125,7 +134,7 @@ func Handle(templateFileName string) {
 	err = store.Get(t, &goFiles)
 	if err == skv.ErrNotFound {
 		store.Close()
-		log.Fatal("gohtml: template not set")
+		log.Fatal("gohtml: no associasions for " + t)
 	}
 	if err != nil {
 		store.Close()
@@ -144,23 +153,27 @@ func Handle(templateFileName string) {
 	store.Close()
 }
 
-func Help() {
-	fmt.Printf(`gohtml %s // github.com/zengabor/gohtml
+func updateAssociations(store *skv.KVStore, associations []*Association) error {
+	for _, a := range associations {
+		if len(a.GoFileNames) == 0 {
+			if err := store.Delete(a.TemplateFileName); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := store.Put(a.TemplateFileName, a.GoFileNames); err != nil {
+			return err
+		}
+		log.Printf("gohtml: '%s' is associated with %+v\n", a.TemplateFileName, a.GoFileNames)
+	}
+	return nil
+}
 
-Sets associations between (go) files and templates, so when you invoke it to handle a template it will touch the associated files. Consequently the build process will process those (go) files. Associations are stored in %s
-
-Usage:    gohtml <command> <args>
-
-Available commands:
-  set     Associates a file with templates. Obsolete associations are removed.
-  handle  Touches all files that are associated with the provided template.
-  help    Prints this screen.
-
-Examples:
-  gothml set path/index.go one.gohtml b/two.gohtml
-  gohtml handle b/two.gohtml
-
-`, version, dbFileName)
+func decode(k, v []byte) (key string, value []string, err error) {
+	key = string(k)
+	d := gob.NewDecoder(bytes.NewReader(v))
+	err = d.Decode(&value)
+	return
 }
 
 func isInSlice(s []string, v string) bool {
