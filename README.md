@@ -1,6 +1,6 @@
 # gohtml
 
-Command-line tool to maintain associations between (go) files and templates, so when you invoke it to handle a template it will `touch` all associated files so that the build process can pick them up. (Associations are stored in the home directory, in `.gohtml/gohtml.db`.)
+Command-line tool to set associations between (go) files and templates, so when you invoke it to handle a template it will `touch` all associated files. Consequently the build process will process those (go) files. (Associations are stored in the home directory, in `.gohtml/gohtml.db`.)
 
 ## Usage
 

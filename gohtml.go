@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	version = "1.0"
-	subdir  = ".gohtml"
-	file    = "gohtml.db"
-	execute = "/usr/bin/touch"
+	version       = "1.0"
+	subdir        = ".gohtml"
+	file          = "gohtml.db"
+	handleCommand = "/usr/bin/touch"
 )
 
 type Association struct {
@@ -132,7 +132,7 @@ func Handle(templateFileName string) {
 		log.Fatal(err)
 	}
 	for _, g := range goFiles {
-		cmd := exec.Command(execute + " " + g)
+		cmd := exec.Command(handleCommand + " " + g)
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		if err := cmd.Run(); err != nil {
@@ -145,7 +145,9 @@ func Handle(templateFileName string) {
 }
 
 func Help() {
-	fmt.Printf(`gohtml %s - Sets associations between (go) files and templates, so when you invoke it to handle a template it will touch the associated files so that the build process can pick them up. Associations are stored in %s
+	fmt.Printf(`gohtml %s // github.com/zengabor/gohtml
+
+Sets associations between (go) files and templates, so when you invoke it to handle a template it will touch the associated files. Consequently the build process will process those (go) files. Associations are stored in %s
 
 Usage:    gohtml <command> <args>
 
