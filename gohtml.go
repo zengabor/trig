@@ -55,11 +55,11 @@ func main() {
 			log.Fatal("gohtml: provide at least one template file name to set")
 		}
 		Set(os.Args[2], os.Args[3:])
-	case "run":
+	case "handle":
 		if len(os.Args) != 3 {
-			log.Fatal("gohtml: provide exactly one template file name for run")
+			log.Fatal("gohtml: provide exactly one template file name for handle")
 		}
-		Run(os.Args[2])
+		Handle(os.Args[2])
 	case "help":
 		Help()
 	default:
@@ -115,7 +115,7 @@ func Set(goFile string, templates []string) {
 	store.Close()
 }
 
-func Run(templateFileName string) {
+func Handle(templateFileName string) {
 	store, err := skv.OpenReadOnly(dbFileName)
 	if err != nil {
 		log.Fatal(err)
@@ -145,18 +145,18 @@ func Run(templateFileName string) {
 }
 
 func Help() {
-	fmt.Printf(`gohtml %s - Sets associations between go files and templates, so when you invoke it with the path to a template it will touch the associated go files so that the build process can pick them up. Associations are stored in %s
+	fmt.Printf(`gohtml %s - Sets associations between (go) files and templates, so when you invoke it to handle a template it will touch the associated files so that the build process can pick them up. Associations are stored in %s
 
-Usage: gohtml <command> <args>
+Usage:    gohtml <command> <args>
 
 Available commands:
-  set   Associates a go file with templates. Obsolete associations are removed.
-  run   Runs the go files that are associated with the template.
-  help  Prints this screen.
+  set     Associates a file with templates. Obsolete associations are removed.
+  handle  Touches all files that are associated with the provided template.
+  help    Prints this screen.
 
 Examples:
   gothml set path/index.go one.gohtml b/two.gohtml
-  gohtml run b/two.gohtml
+  gohtml handle b/two.gohtml
 
 `, version, dbFileName)
 }
