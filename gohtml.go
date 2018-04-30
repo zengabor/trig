@@ -198,7 +198,7 @@ func getFullPath(pathToFile string) string {
 	}
 	s, err := filepath.Abs(pathToFile)
 	if err != nil {
-		log.Printf("gohtml: could not resolve full path: %s\n", err)
+		log.Fatal(fmt.Sprintf("gohtml: could not resolve full path: %s\n", err))
 	}
 	return s
 }
