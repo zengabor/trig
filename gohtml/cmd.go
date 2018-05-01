@@ -49,7 +49,7 @@ func help() {
 
 Sets associations between (go) files and templates, so when it handles a template it will "touch" the associated files (currently this is implemented by moving the file to a temporary directory, then moving it back after 2 seconds). Consequently a build tool (like CodeKit) can react and process those files. Associations are stored in %s
 
-Usage:    gohtml <command> <args>
+Usage:    gohtml <command> [<args>...]
 
 Available commands:
   set     Associates a file with templates. (If a currently associated template is not mentioned, the association is removed.)
