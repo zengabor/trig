@@ -11,14 +11,14 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/zengabor/skv"
 )
 
 const (
-	subdir        = ".gohtml"
-	file          = "gohtml.db"
-	handleCommand = "/usr/bin/touch"
+	subdir = ".gohtml"
+	file   = "gohtml.db"
 )
 
 type Association struct {
@@ -107,13 +107,10 @@ func Unset(toBeRemoved string) {
 			store.Close()
 			log.Fatal(err)
 		}
-		log.Printf(">>>>>> %v >>> %+v\n", templateFileName, goFiles)
 		if templateFileName == tbr {
 			toUpdate = append(toUpdate, &Association{templateFileName, []string{}})
-			log.Println("removing " + templateFileName)
 		} else if isInSlice(goFiles, tbr) {
 			toUpdate = append(toUpdate, &Association{templateFileName, cleanSlice(goFiles, tbr)})
-			log.Printf("cleaned: %+v\n", cleanSlice(goFiles, tbr))
 		}
 		return nil
 	})
@@ -132,25 +129,37 @@ func Handle(templateFileName string) {
 	t := getFullPath(templateFileName)
 	var goFiles []string
 	err = store.Get(t, &goFiles)
+	store.Close()
 	if err == skv.ErrNotFound {
-		store.Close()
-		log.Fatal("gohtml: no associasions for " + t)
+		log.Fatal("gohtml: no associations for " + t)
 	}
 	if err != nil {
-		store.Close()
 		log.Fatal(err)
 	}
 	for _, g := range goFiles {
-		cmd := exec.Command(handleCommand + " " + g)
-		var out bytes.Buffer
-		cmd.Stdout = &out
-		if err := cmd.Run(); err != nil {
-			store.Close()
-			log.Fatal(err)
-		}
-		fmt.Println(out.String())
+		// TODO: waiting on https://github.com/bdkjones/CodeKit/issues/463
+		// and since `touch` doesn't work this, is a horrible temporary hack:
+		// first move out the file to a temp dir, wait 3s, then move it back
+		dir, file := path.Split(g)
+		tempDir := path.Join(dir, "tmp")
+		exe("mkdir", "-p", tempDir)
+		// defer exe("rmdir", tempDir)
+		exe("mv", g, path.Join(tempDir, "_"+file))
+		defer exe("mv", path.Join(tempDir, "_"+file), g)
 	}
-	store.Close()
+	// wait a little bit more than 2s before the deferred moves
+	time.Sleep(2*time.Second + 100*time.Microsecond)
+}
+
+func exe(command string, args ...string) {
+	cmd := exec.Command(command, args...)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	fmt.Print(out.String())
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func updateAssociations(store *skv.KVStore, associations []*Association) error {
@@ -164,7 +173,7 @@ func updateAssociations(store *skv.KVStore, associations []*Association) error {
 		if err := store.Put(a.TemplateFileName, a.GoFileNames); err != nil {
 			return err
 		}
-		log.Printf("gohtml: '%s' is associated with %+v\n", a.TemplateFileName, a.GoFileNames)
+		log.Printf("gohtml: '%s' associated with %+v\n", a.TemplateFileName, a.GoFileNames)
 	}
 	return nil
 }
