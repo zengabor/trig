@@ -47,7 +47,7 @@ func main() {
 func help() {
 	fmt.Printf(`gohtml %s // github.com/zengabor/gohtml
 
-Sets associations between (go) files and templates, so when it handles a template it will "touch" the associated files (currently this is implemented by moving the file to a temporary directory, then moving it back after 2 seconds). Consequently a build process can react and process those files. Associations are stored in %s
+Sets associations between (go) files and templates, so when it handles a template it will "touch" the associated files (currently this is implemented by moving the file to a temporary directory, then moving it back after 2 seconds). Consequently a build tool (like CodeKit) can react and process those files. Associations are stored in %s
 
 Usage:    gohtml <command> <args>
 
@@ -55,7 +55,7 @@ Available commands:
   set     Associates a file with templates. (If a currently associated template is not mentioned, the association is removed.)
   unset   Removes all associations of a file or template.
   list    List associations.
-  handle  Touches all files that are associated with the provided template.
+  handle  "Touches" all files that are associated with the provided template.
   help    Prints this screen.
 
 Examples:
