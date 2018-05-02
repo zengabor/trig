@@ -19,9 +19,7 @@ func main() {
 	}
 	switch command {
 	case "list":
-		for i, a := range gohtml.GetAll() {
-			fmt.Printf("%d. %s <-> %+v\n", i, a.TemplateFileName, a.GoFileNames)
-		}
+		gohtml.List()
 	case "set":
 		if len(os.Args) < 4 {
 			log.Fatal("gohtml: provide at least one template file path to set")

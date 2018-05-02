@@ -40,11 +40,13 @@ func init() {
 	DBFileName = path.Join(dir, file)
 }
 
-func GetAll() (associations []*Association) {
+func List() {
 	store, err := skv.Open(DBFileName)
 	if err != nil {
 		log.Fatal(err)
 	}
+	var associations []*Association
+	var fileNames []string
 	store.ForEach(func(k, v []byte) error {
 		var goFiles []string
 		d := gob.NewDecoder(bytes.NewReader(v))
@@ -53,10 +55,37 @@ func GetAll() (associations []*Association) {
 			log.Fatal(err)
 		}
 		associations = append(associations, &Association{string(k), goFiles})
+		fileNames = append(fileNames, append(goFiles, string(k))...)
 		return nil
 	})
 	store.Close()
-	return
+	base := fileNames[0]
+	for i := 1; i < len(fileNames); i++ {
+		f := fileNames[i]
+		l := len(base)
+		if len(f) < l {
+			l = len(f)
+		}
+		for l > 1 {
+			if strings.HasPrefix(f[:l], base[:l]) {
+				base = base[:l]
+				break
+			}
+			l--
+		}
+	}
+	fmt.Printf("Common base directory: %s\n", base)
+	for i, a := range associations {
+		fmt.Printf("%d. %s: [", i, strings.TrimPrefix(a.TemplateFileName, base))
+		for j, g := range a.GoFileNames {
+			fmt.Printf(strings.TrimPrefix(g, base))
+			if j == len(a.GoFileNames)-1 {
+				fmt.Printf("]\n")
+			} else if j > 0 {
+				fmt.Printf(" ")
+			}
+		}
+	}
 }
 
 func Set(goFile string, templates []string) {
