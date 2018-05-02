@@ -131,7 +131,8 @@ func Handle(templateFileName string) {
 	err = store.Get(t, &goFiles)
 	store.Close()
 	if err == skv.ErrNotFound {
-		log.Fatal("gohtml: no associations for " + t)
+		fmt.Fprintf(os.Stdout, "gohtml: no associations for %s\n", t)
+		return
 	}
 	if err != nil {
 		log.Fatal(err)
