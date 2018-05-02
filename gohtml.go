@@ -131,7 +131,7 @@ func Handle(templateFileName string) {
 	err = store.Get(t, &goFiles)
 	store.Close()
 	if err == skv.ErrNotFound {
-		fmt.Fprintf(os.Stdout, "gohtml: no associations for %s\n", t)
+		fmt.Printf("gohtml: no associations for %s\n", t)
 		return
 	}
 	if err != nil {
@@ -174,7 +174,6 @@ func updateAssociations(store *skv.KVStore, associations []*Association) error {
 		if err := store.Put(a.TemplateFileName, a.GoFileNames); err != nil {
 			return err
 		}
-		log.Printf("gohtml: '%s' associated with %+v\n", a.TemplateFileName, a.GoFileNames)
 	}
 	return nil
 }
