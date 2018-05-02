@@ -59,11 +59,11 @@ Available commands:
   help    Prints this screen.
 
 Examples:
-  gothml set path/index.go one.gohtml b/two.gohtml
+  gohtml set path/index.go one.gohtml b/two.gohtml
   gohtml list
   gohtml handle b/two.gohtml
-  gothml unset one.gohtml
-  gothml unset path/index.go
+  gohtml unset one.gohtml
+  gohtml unset path/index.go
 
 `, version, gohtml.DBFileName)
 }
