@@ -76,15 +76,12 @@ func List() {
 	}
 	fmt.Printf("Common base directory: %s\n", base)
 	for i, a := range associations {
-		fmt.Printf("%d. %s: [", i, strings.TrimPrefix(a.TemplateFileName, base))
-		for j, g := range a.GoFileNames {
-			fmt.Printf(strings.TrimPrefix(g, base))
-			if j == len(a.GoFileNames)-1 {
-				fmt.Printf("]\n")
-			} else if j > 0 {
-				fmt.Printf(" ")
-			}
-		}
+		fmt.Printf(
+			"%d. %s: %+v\n",
+			i,
+			strings.TrimPrefix(a.TemplateFileName, base),
+			strmap(a.GoFileNames, func(s string) string { return strings.TrimPrefix(s, base) }),
+		)
 	}
 }
 
@@ -153,6 +150,7 @@ func Unset(toBeRemoved string) {
 func Handle(templateFileName string) {
 	store, err := skv.OpenReadOnly(DBFileName)
 	if err != nil {
+		fmt.Print("gohtml: could not open db (read-only)")
 		log.Fatal(err)
 	}
 	t := getFullPath(templateFileName)
@@ -164,6 +162,7 @@ func Handle(templateFileName string) {
 		return
 	}
 	if err != nil {
+		log.Print("gohtml: could not get associated files for this template")
 		log.Fatal(err)
 	}
 	for _, g := range goFiles {
@@ -173,7 +172,6 @@ func Handle(templateFileName string) {
 		dir, file := path.Split(g)
 		tempDir := path.Join(dir, "tmp")
 		exe("mkdir", "-p", tempDir)
-		// defer exe("rmdir", tempDir)
 		exe("mv", g, path.Join(tempDir, "_"+file))
 		defer exe("mv", path.Join(tempDir, "_"+file), g)
 	}
@@ -188,6 +186,8 @@ func exe(command string, args ...string) {
 	err := cmd.Run()
 	fmt.Print(out.String())
 	if err != nil {
+		fmt.Print("gohtml: could not execute " + command + " ")
+		fmt.Println(args)
 		log.Fatal(err)
 	}
 }
@@ -221,6 +221,14 @@ func isInSlice(s []string, v string) bool {
 		}
 	}
 	return false
+}
+
+func strmap(vs []string, f func(string) string) []string {
+	vsm := make([]string, len(vs))
+	for i, v := range vs {
+		vsm[i] = f(v)
+	}
+	return vsm
 }
 
 func appendIfNecessary(s []string, v string) []string {
