@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	appName = "gohtml"
 	version = "1.0"
 )
 
@@ -22,32 +23,32 @@ func main() {
 		gohtml.List()
 	case "set":
 		if len(os.Args) < 4 {
-			log.Fatal("gohtml: provide at least one template file path to set")
+			log.Fatal(appName + ": provide at least one template file path to set")
 		}
 		gohtml.Set(os.Args[2], os.Args[3:])
 	case "unset":
 		if len(os.Args) != 3 {
-			log.Fatal("gohtml: provide exactly one file path to unset")
+			log.Fatal(appName + ": provide exactly one file path to unset")
 		}
 		gohtml.Unset(os.Args[2])
 	case "handle":
 		if len(os.Args) != 3 {
-			log.Fatal("gohtml: provide exactly one template file path for handle")
+			log.Fatal(appName + ": provide exactly one template file path for handle")
 		}
 		gohtml.Handle(os.Args[2])
 	case "help":
 		help()
 	default:
-		log.Fatal(fmt.Sprintf("gohtml: unknown command '%s'\n", os.Args[1]))
+		log.Fatal(fmt.Sprintf(appName+": unknown command '%s'\n", os.Args[1]))
 	}
 }
 
 func help() {
-	fmt.Printf(`gohtml %s // github.com/zengabor/gohtml
+	fmt.Printf(`%s %s // github.com/zengabor/gohtml
 
 Sets associations between (go) files and templates, so when it handles a template it will "touch" the associated files (currently this is implemented by moving the file to a temporary directory, then moving it back after 2 seconds). Consequently a build tool (like CodeKit) can react and process those files. Associations are stored in %s
 
-Usage:    gohtml <command> [<args>...]
+Usage:    %[1]s <command> [<args>...]
 
 Available commands:
   set     Associates a file with templates. (If a currently associated template is not mentioned, the association is removed.)
@@ -57,11 +58,11 @@ Available commands:
   help    Prints this screen.
 
 Examples:
-  gohtml set path/index.go one.gohtml b/two.gohtml
-  gohtml list
-  gohtml handle b/two.gohtml
-  gohtml unset one.gohtml
-  gohtml unset path/index.go
+  %[1]s set path/index.go one.gohtml b/two.gohtml
+  %[1]s list
+  %[1]s handle b/two.gohtml
+  %[1]s unset one.gohtml
+  %[1]s unset path/index.go
 
-`, version, gohtml.DBFileName)
+`, appName, version, gohtml.DBFileName)
 }

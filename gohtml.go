@@ -92,15 +92,15 @@ func Set(goFile string, templates []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	templatesToProcess := append([]string(nil), templates...)
+	templatesToGo := append([]string(nil), templates...)
 	var toUpdate []*Association
 	store.ForEach(func(k, v []byte) error {
 		templateFileName, goFiles, err := decode(k, v)
-		templatesToProcess = cleanSlice(templatesToProcess, templateFileName)
 		if err != nil {
 			store.Close()
 			log.Fatal(err)
 		}
+		templatesToGo = cleanSlice(templatesToGo, templateFileName)
 		if isInSlice(templates, templateFileName) {
 			if added := appendIfNecessary(goFiles, goFile); len(added) > len(goFiles) {
 				toUpdate = append(toUpdate, &Association{templateFileName, added})
@@ -110,7 +110,7 @@ func Set(goFile string, templates []string) {
 		}
 		return nil
 	})
-	for _, t := range templatesToProcess {
+	for _, t := range templatesToGo {
 		toUpdate = append(toUpdate, &Association{t, []string{goFile}})
 	}
 	err = updateAssociations(store, toUpdate)
@@ -179,6 +179,21 @@ func Handle(templateFileName string) {
 	time.Sleep(2*time.Second + 100*time.Microsecond)
 }
 
+func GetFullPath(pathToFile string) (string, error) {
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if !strings.HasPrefix(pathToFile, "/") {
+		pathToFile = path.Join(workingDirectory, pathToFile)
+	}
+	s, err := filepath.Abs(pathToFile)
+	if err != nil {
+		return "", err
+	}
+	return s, nil
+}
+
 func exe(command string, args ...string) {
 	cmd := exec.Command(command, args...)
 	var out bytes.Buffer
@@ -188,7 +203,7 @@ func exe(command string, args ...string) {
 	if err != nil {
 		fmt.Print("gohtml: could not execute " + command + " ")
 		fmt.Println(args)
-		log.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -250,14 +265,7 @@ func cleanSlice(s []string, v string) []string {
 }
 
 func getFullPath(pathToFile string) string {
-	workingDirectory, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !strings.HasPrefix(pathToFile, "/") {
-		pathToFile = path.Join(workingDirectory, pathToFile)
-	}
-	s, err := filepath.Abs(pathToFile)
+	s, err := GetFullPath(pathToFile)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("gohtml: could not resolve full path: %s\n", err))
 	}
