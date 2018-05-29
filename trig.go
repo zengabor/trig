@@ -59,6 +59,10 @@ func List() {
 		return nil
 	})
 	store.Close()
+	if len(associations) == 0 {
+		fmt.Println("No associations yet.")
+		return
+	}
 	base := fileNames[0]
 	for i := 1; i < len(fileNames); i++ {
 		f := fileNames[i]
