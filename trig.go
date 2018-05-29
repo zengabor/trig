@@ -172,10 +172,12 @@ func Handle(triggeringFileName string) {
 	for _, g := range depFiles {
 		// TODO: waiting on https://github.com/bdkjones/CodeKit/issues/463
 		// and since `touch` doesn't work, here is a horrible temporary hack:
-		// first move out the file to a new path (starting with _), wait 2s,
-		// then move the file back to the original path
+		// first move out the file to a new path (e.g., `mv a.go tmp/_a.go`),
+		// wait 2s, then move the file back to its original path.
 		dir, file := path.Split(g)
-		tmpPath := path.Join(dir, "_"+file)
+		tempDir := path.Join(dir, "tmp")
+		exe("mkdir", "-p", tempDir)
+		tmpPath := path.Join(tempDir, "_"+file)
 		exe("mv", g, tmpPath)
 		defer exe("mv", tmpPath, g)
 		time.Sleep(100 * time.Microsecond)
