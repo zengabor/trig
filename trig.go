@@ -1,4 +1,4 @@
-package gohtml
+package trig
 
 import (
 	"bytes"
@@ -17,13 +17,13 @@ import (
 )
 
 const (
-	subdir = ".gohtml"
-	file   = "gohtml.db"
+	subdir = ".trig"
+	file   = "associations.db"
 )
 
 type Association struct {
-	TemplateFileName string
-	GoFileNames      []string
+	TriggeringFileName string
+	DependentFileNames []string
 }
 
 var DBFileName = ""
@@ -35,7 +35,7 @@ func init() {
 	}
 	dir := path.Join(usr.HomeDir, subdir)
 	if err = os.MkdirAll(dir, os.ModePerm); err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Sprintf("error creating '%s': %s", dir, err))
 	}
 	DBFileName = path.Join(dir, file)
 }
@@ -48,14 +48,14 @@ func List() {
 	var associations []*Association
 	var fileNames []string
 	store.ForEach(func(k, v []byte) error {
-		var goFiles []string
+		var depFiles []string
 		d := gob.NewDecoder(bytes.NewReader(v))
-		if err := d.Decode(&goFiles); err != nil {
+		if err := d.Decode(&depFiles); err != nil {
 			store.Close()
 			log.Fatal(err)
 		}
-		associations = append(associations, &Association{string(k), goFiles})
-		fileNames = append(fileNames, append(goFiles, string(k))...)
+		associations = append(associations, &Association{string(k), depFiles})
+		fileNames = append(fileNames, append(depFiles, string(k))...)
 		return nil
 	})
 	store.Close()
@@ -79,39 +79,39 @@ func List() {
 		fmt.Printf(
 			"%d. %s: %+v\n",
 			i,
-			strings.TrimPrefix(a.TemplateFileName, base),
-			strmap(a.GoFileNames, func(s string) string { return strings.TrimPrefix(s, base) }),
+			strings.TrimPrefix(a.TriggeringFileName, base),
+			strmap(a.DependentFileNames, func(s string) string { return strings.TrimPrefix(s, base) }),
 		)
 	}
 }
 
-func Set(goFile string, templates []string) {
-	goFile = getFullPath(goFile)
-	templates = getFullPaths(templates)
+func Set(dependentFileName string, triggeringFileNames []string) {
+	dependentFile := getFullPath(dependentFileName)
+	triggeringFiles := getFullPaths(triggeringFileNames)
 	store, err := skv.Open(DBFileName)
 	if err != nil {
 		log.Fatal(err)
 	}
-	templatesToGo := append([]string(nil), templates...)
+	triggeringFilesToGo := append([]string(nil), triggeringFiles...)
 	var toUpdate []*Association
 	store.ForEach(func(k, v []byte) error {
-		templateFileName, goFiles, err := decode(k, v)
+		templateFileName, depFiles, err := decode(k, v)
 		if err != nil {
 			store.Close()
 			log.Fatal(err)
 		}
-		templatesToGo = cleanSlice(templatesToGo, templateFileName)
-		if isInSlice(templates, templateFileName) {
-			if added := appendIfNecessary(goFiles, goFile); len(added) > len(goFiles) {
+		triggeringFilesToGo = cleanSlice(triggeringFilesToGo, templateFileName)
+		if isInSlice(triggeringFiles, templateFileName) {
+			if added := appendIfNecessary(depFiles, dependentFile); len(added) > len(depFiles) {
 				toUpdate = append(toUpdate, &Association{templateFileName, added})
 			}
-		} else if cleaned := cleanSlice(goFiles, goFile); len(cleaned) < len(goFiles) {
+		} else if cleaned := cleanSlice(depFiles, dependentFile); len(cleaned) < len(depFiles) {
 			toUpdate = append(toUpdate, &Association{templateFileName, cleaned})
 		}
 		return nil
 	})
-	for _, t := range templatesToGo {
-		toUpdate = append(toUpdate, &Association{t, []string{goFile}})
+	for _, t := range triggeringFilesToGo {
+		toUpdate = append(toUpdate, &Association{t, []string{dependentFile}})
 	}
 	err = updateAssociations(store, toUpdate)
 	store.Close()
@@ -128,15 +128,15 @@ func Unset(toBeRemoved string) {
 	}
 	var toUpdate []*Association
 	store.ForEach(func(k, v []byte) error {
-		templateFileName, goFiles, err := decode(k, v)
+		triggeringFileName, depFiles, err := decode(k, v)
 		if err != nil {
 			store.Close()
 			log.Fatal(err)
 		}
-		if templateFileName == tbr {
-			toUpdate = append(toUpdate, &Association{templateFileName, []string{}})
-		} else if isInSlice(goFiles, tbr) {
-			toUpdate = append(toUpdate, &Association{templateFileName, cleanSlice(goFiles, tbr)})
+		if triggeringFileName == tbr {
+			toUpdate = append(toUpdate, &Association{triggeringFileName, []string{}})
+		} else if isInSlice(depFiles, tbr) {
+			toUpdate = append(toUpdate, &Association{triggeringFileName, cleanSlice(depFiles, tbr)})
 		}
 		return nil
 	})
@@ -147,36 +147,37 @@ func Unset(toBeRemoved string) {
 	}
 }
 
-func Handle(templateFileName string) {
+func Handle(triggeringFileName string) {
 	store, err := skv.OpenReadOnly(DBFileName)
 	if err != nil {
-		fmt.Print("gohtml: could not open db (read-only)")
+		fmt.Print("trig: could not open db (read-only)")
 		log.Fatal(err)
 	}
-	t := getFullPath(templateFileName)
-	var goFiles []string
-	err = store.Get(t, &goFiles)
+	t := getFullPath(triggeringFileName)
+	var depFiles []string
+	err = store.Get(t, &depFiles)
 	store.Close()
 	if err == skv.ErrNotFound {
-		fmt.Printf("gohtml: no associations for %s\n", t)
+		fmt.Printf("trig: no associations for %s\n", t)
 		return
 	}
 	if err != nil {
-		log.Print("gohtml: could not get associated files for this template")
+		log.Print("trig: could not get associated files for this template")
 		log.Fatal(err)
 	}
-	for _, g := range goFiles {
+	for _, g := range depFiles {
 		// TODO: waiting on https://github.com/bdkjones/CodeKit/issues/463
-		// and since `touch` doesn't work this, is a horrible temporary hack:
-		// first move out the file to a temp dir, wait 3s, then move it back
+		// and since `touch` doesn't work, here is a horrible temporary hack:
+		// first move out the file to a new path (starting with _), wait 2s,
+		// then move the file back to the original path
 		dir, file := path.Split(g)
-		tempDir := path.Join(dir, "tmp")
-		exe("mkdir", "-p", tempDir)
-		exe("mv", g, path.Join(tempDir, "_"+file))
-		defer exe("mv", path.Join(tempDir, "_"+file), g)
+		tmpPath := path.Join(dir, "_"+file)
+		exe("mv", g, tmpPath)
+		defer exe("mv", tmpPath, g)
+		time.Sleep(100 * time.Microsecond)
 	}
-	// wait a little bit more than 2s before the deferred moves
-	time.Sleep(2*time.Second + 100*time.Microsecond)
+	// wait 2s before the deferred moves
+	time.Sleep(2 * time.Second)
 }
 
 func GetFullPath(pathToFile string) (string, error) {
@@ -201,7 +202,7 @@ func exe(command string, args ...string) {
 	err := cmd.Run()
 	fmt.Print(out.String())
 	if err != nil {
-		fmt.Print("gohtml: could not execute " + command + " ")
+		fmt.Print("trig: could not execute " + command + " ")
 		fmt.Println(args)
 		panic(err)
 	}
@@ -209,13 +210,13 @@ func exe(command string, args ...string) {
 
 func updateAssociations(store *skv.KVStore, associations []*Association) error {
 	for _, a := range associations {
-		if len(a.GoFileNames) == 0 {
-			if err := store.Delete(a.TemplateFileName); err != nil {
+		if len(a.DependentFileNames) == 0 {
+			if err := store.Delete(a.TriggeringFileName); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := store.Put(a.TemplateFileName, a.GoFileNames); err != nil {
+		if err := store.Put(a.TriggeringFileName, a.DependentFileNames); err != nil {
 			return err
 		}
 	}
@@ -267,7 +268,7 @@ func cleanSlice(s []string, v string) []string {
 func getFullPath(pathToFile string) string {
 	s, err := GetFullPath(pathToFile)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("gohtml: could not resolve full path: %s\n", err))
+		log.Fatal(fmt.Sprintf("trig: could not resolve full path: %s\n", err))
 	}
 	return s
 }
