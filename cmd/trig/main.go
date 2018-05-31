@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	trig "github.com/zengabor/gohtml"
+	trig "github.com/zengabor/trig"
 )
 
 const (
