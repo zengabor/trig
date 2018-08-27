@@ -79,6 +79,7 @@ func List() {
 		}
 	}
 	fmt.Printf("Common base directory: %s\n", base)
+	fmt.Println("Listing triggeringFile [dependent files]")
 	for i, a := range associations {
 		fmt.Printf(
 			"%d. %s: %+v\n",
@@ -124,33 +125,33 @@ func Set(dependentFileName string, triggeringFileNames []string) {
 	}
 }
 
-func Unset(toBeRemoved string) {
-	tbr := getFullPath(toBeRemoved)
-	store, err := skv.Open(DBFileName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	var toUpdate []*Association
-	store.ForEach(func(k, v []byte) error {
-		triggeringFileName, depFiles, err := decode(k, v)
-		if err != nil {
-			store.Close()
-			log.Fatal(err)
-		}
-		if triggeringFileName == tbr {
-			toUpdate = append(toUpdate, &Association{triggeringFileName, []string{}})
-		} else if isInSlice(depFiles, tbr) {
-			toUpdate = append(toUpdate, &Association{triggeringFileName, cleanSlice(depFiles, tbr)})
-		}
-		return nil
-	})
-	err = updateAssociations(store, toUpdate)
-	store.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
+// func Unset(toBeRemoved string) {
+// 	tbr := getFullPath(toBeRemoved)
+// 	store, err := skv.Open(DBFileName)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	var toUpdate []*Association
+// 	store.ForEach(func(k, v []byte) error {
+// 		triggeringFileName, depFiles, err := decode(k, v)
+// 		if err != nil {
+// 			store.Close()
+// 			log.Fatal(err)
+// 		}
+// 		if triggeringFileName == tbr {
+// 			toUpdate = append(toUpdate, &Association{triggeringFileName, []string{}})
+// 		} else if isInSlice(depFiles, tbr) {
+// 			toUpdate = append(toUpdate, &Association{triggeringFileName, cleanSlice(depFiles, tbr)})
+// 		}
+// 		return nil
+// 	})
+// 	err = updateAssociations(store, toUpdate)
+// 	store.Close()
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// }
+//
 func Handle(triggeringFileName string) {
 	store, err := skv.OpenReadOnly(DBFileName)
 	if err != nil {
@@ -208,10 +209,10 @@ func exe(command string, args ...string) {
 	err := cmd.Run()
 	fmt.Print(out.String())
 	if err != nil {
-		fmt.Print("trig: could not execute " + command + " ")
-		fmt.Println(args)
+		fmt.Printf("trig: could not execute %s: %s\n", args, err)
 		panic(err)
 	}
+	fmt.Printf("trig: executed %s\n", args)
 }
 
 func updateAssociations(store *skv.KVStore, associations []*Association) error {
