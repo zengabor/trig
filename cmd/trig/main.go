@@ -27,11 +27,6 @@ func main() {
 			log.Fatal(appName + ": provide at least the dependent file")
 		}
 		trig.Set(os.Args[2], os.Args[3:])
-	// case "unset":
-	// 	if len(os.Args) != 3 {
-	// 		log.Fatal(appName + ": provide exactly one file path to unset")
-	// 	}
-	// 	trig.UnsetTriggeringFilesFrom(os.Args[2])
 	case "handle":
 		if len(os.Args) != 3 {
 			log.Fatal(appName + ": provide exactly one file path to handle")
@@ -69,8 +64,8 @@ Examples:
   %[1]s register .go 'go run $1'
   %[1]s set www/index.go templates/one.gohtml templates/two.gohtml
   %[1]s set www/index.go
-  %[1]s list
   %[1]s handle templates/two.gohtml
+  %[1]s list
 
-`, appName, version, trig.DBFileName)
+`, appName, version, trig.dbFileName)
 }
