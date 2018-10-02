@@ -9,11 +9,15 @@ import (
 )
 
 const (
-	subdir = ".trig"
-	file   = "associations.db"
+	subdir   = ".trig"
+	fileName = "associations.db"
 )
 
-var dbFileName = ""
+var dbFileName string
+
+func DBFileName() string {
+	return dbFileName
+}
 
 func init() {
 	usr, err := user.Current()
@@ -24,5 +28,5 @@ func init() {
 	if err = os.MkdirAll(dir, os.ModePerm); err != nil {
 		log.Fatal(fmt.Sprintf("error creating '%s': %s", dir, err))
 	}
-	dbFileName = path.Join(dir, file)
+	dbFileName = path.Join(dir, fileName)
 }

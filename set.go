@@ -75,14 +75,13 @@ func isInSlice(s []string, v string) bool {
 }
 
 func appendIfNecessary(s []string, v string) []string {
-	for _, ss := range s {
-		if ss == v {
-			return s
-		}
+	if len(v) == 0 || isInSlice(s, v) {
+		return s
 	}
 	return append(s, v)
 }
 
+// removes first occurrence
 func cleanSlice(s []string, v string) []string {
 	for i, ss := range s {
 		if ss == v {

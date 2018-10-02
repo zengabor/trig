@@ -1,12 +1,10 @@
 package trig
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"os/exec"
-	"path"
-	"time"
+	"strings"
 
 	"github.com/zengabor/skv"
 )
@@ -29,32 +27,22 @@ func Handle(triggeringFileName string) {
 		log.Print("trig: could not get associated files for this template")
 		log.Fatal(err)
 	}
-	for _, g := range depFiles {
-		// TODO: waiting on https://github.com/bdkjones/CodeKit/issues/463
-		// and since `touch` doesn't work, here is a horrible temporary hack:
-		// first move out the file to a new path (e.g., `mv a.go tmp/_a.go`),
-		// wait 2s, then move the file back to its original path.
-		dir, file := path.Split(g)
-		tempDir := path.Join(dir, "tmp")
-		exe("mkdir", "-p", tempDir)
-		tmpPath := path.Join(tempDir, "_"+file)
-		exe("mv", g, tmpPath)
-		defer exe("mv", tmpPath, g)
-		time.Sleep(100 * time.Microsecond)
+	for _, f := range depFiles {
+		exe(
+			"/usr/bin/osascript",
+			"-e",
+			fmt.Sprintf("tell application %q to process file at path %q", "CodeKit", f),
+		)
 	}
-	// wait 2s before the deferred moves
-	time.Sleep(2 * time.Second)
 }
 
 func exe(command string, args ...string) {
 	cmd := exec.Command(command, args...)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	fmt.Print(out.String())
+	out, err := cmd.CombinedOutput()
+	fmt.Print(string(out))
 	if err != nil {
-		fmt.Printf("trig: could not execute %s: %s\n", args, err)
-		panic(err)
+		panic(fmt.Sprintf("trig: could not execute %s %s: %s\n", command, args, err))
 	}
-	fmt.Printf("trig: executed %s\n", args)
+	fmt.Printf("trig: executed %s", command)
+	fmt.Println(strings.Trim(fmt.Sprint(args), "[]"))
 }

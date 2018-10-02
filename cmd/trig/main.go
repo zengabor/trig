@@ -10,7 +10,7 @@ import (
 
 const (
 	appName = "trig"
-	version = "1.0"
+	version = "2.0"
 )
 
 func main() {
@@ -18,7 +18,6 @@ func main() {
 	if len(os.Args) >= 2 {
 		command = os.Args[1]
 	}
-	fmt.Printf("%v\n", os.Args)
 	switch command {
 	case "list":
 		trig.List()
@@ -41,31 +40,37 @@ func main() {
 
 func help() {
 	fmt.Printf(`%s %s // github.com/zengabor/trig
-Tool to set associations between  files and templates, so when it handles a triggering file it will "touch" all associated files (currently this is implemented by moving the file to a temporary directory, then moving it back after 2 seconds). Consequently a build tool can react and process those files. Associations are stored in %s
+This command-line tool extends CodeKit (https://codekitapp.com). It can set
+associations between template files (triggering files) and dependent files
+(the ones using those template files). For example, if you update a template
+"footer.html" and call trig with the file path ("trig handle footer.html")
+then trig will call CodeKit via AppleScript to process all the files that are
+including "footer.html". This way you can be sure that everything is updated
+when you modify a template.
+Associations are stored in %s
 
 Usage:      
-    %[1]s <command> [<args>...]
-    %[1]s register <file-suffix> <command>
-    %[1]s set <dependent-file> <triggering-file-1> <triggering-file-2>...
-    %[1]s set <dependent-file>
-    %[1]s list
-    %[1]s handle <triggering-file>
-    %[1]s help
+  %[1]s <command> [<args>...]
+  %[1]s set <dependent-file> <triggering-file-1> <triggering-file-2>...
+  %[1]s set <dependent-file>
+  %[1]s handle <triggering-file>
+  %[1]s list
+  %[1]s help
 
 Commands:
-
-  register  Registers a command for a file suffix (typically the file extension). The string "$1" in the command is replaced with the file name.
-  set       Associates triggering files with a dependent file (any existing triggering files not mentioned are removed).
+  set       Associates a dependent file with triggering filess. If a currently
+            associated triggering file is not mentioned, that association is
+            removed. If no triggering files are provided then all are removed.
+  handle    Calls CodeKit to process all dependent files that were associated
+            with the triggering file.
   list      List associations.
-  handle    Executes the registered command on all dependent files that were associated with the provided triggering file.
   help      Prints this help screen.
 
 Examples:
-  %[1]s register .go 'go run $1'
   %[1]s set www/index.go templates/one.gohtml templates/two.gohtml
   %[1]s set www/index.go
   %[1]s handle templates/two.gohtml
   %[1]s list
 
-`, appName, version, trig.dbFileName)
+`, appName, version, trig.DBFileName())
 }
