@@ -1,6 +1,6 @@
 # trig
 
-This command-line tool extends [CodeKit](https://codekitapp.com). It can set associations between template files (triggering files) and dependent files (the ones using those template files). For example, if you update a template `footer.html` and call `trig` with the file path (`trig handle footer.html`) then `trig` will call CodeKit via AppleScript to process all the files that are including `footer.html`. This way you can be sure that everything is updated when you modify a template. (Associations between the files are stored in `~/.trig/associations.db`.)
+This command-line tool extends [CodeKit](https://codekitapp.com). It remembers associations between triggering files (template files) and dependent files (files using those template files). After a template file was modified, you you call trig, e.g., `trig handle footer.html`. Then `trig` calls CodeKit via AppleScript to process all the files that are including "footer.html". (Associations between the files are stored in `~/.trig/associations.db`.)
 
 ## Usage
 
