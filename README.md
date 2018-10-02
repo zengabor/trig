@@ -1,22 +1,19 @@
 # trig
 
-Command-line tool to set associations between a dependent file and its triggering files. For example, if a file includes other files, it is depending on those files, and when those files are changed the dependent files is triggered, so when it handles a template it will "touch" all associated files (currently this is implemented by moving the file to a temporary directory, then moving it back after 2 seconds). Consequently a build tool (like [CodeKit](https://codekitapp.com)) can react and process those files. (Associations are stored in `~/.trig/associations.db`.)
+This command-line tool extends [CodeKit](https://codekitapp.com). It can set associations between template files (triggering files) and dependent files (the ones using those template files). For example, if you update a template `footer.html` and call `trig` with the file path (`trig handle footer.html`) then `trig` will call CodeKit via AppleScript to process all the files that are including `footer.html`. This way you can be sure that everything is updated when you modify a template. (Associations between the files are stored in `~/.trig/associations.db`.)
 
 ## Usage
 
     trig <command> [<args>...]
-    trig register -t <file-suffix> <commands>
     trig set <dependent-file> <triggering-file-1> <triggering-file-2>...
+    trig set <dependent-file>
     trig list
     trig handle <triggering-file>
-    trig unset <file>
     trig help
 
 Commands:
 
-* **register**: Registers a command for a file suffix (typically the file extension). The string `$1` in the command is replaced with the file name.
-* **set:** Associates a dependent file with the triggering files. (If a currently associated triggering file is not mentioned, the association is removed.)
-* **unset:** Removes all associations of a dependent or triggering file.
+* **set:** Associates a dependent file with triggering filess. If a currently associated triggering file is not mentioned, that association is removed. If no triggering files are provided then all are removed.
 * **list:** List associations.
 * **handle:** Executes the registered command on all dependent files that were associated with the provided triggering file.
 * **help:** Prints the help screen.
@@ -27,13 +24,11 @@ Examples:
 
     $ trig set www/index.go templates/one.gohtml templates/two.gohtml
 
+    $ trig set www/index.go
+
     $ trig list
 
     $ trig handle templates/two.gohtml
-
-    $ trig unset templates/one.gohtml
-
-    $ trig unset www/index.go
 
 ## Install
 
