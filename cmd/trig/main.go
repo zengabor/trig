@@ -39,12 +39,14 @@ func main() {
 }
 
 func help() {
-	fmt.Printf(`%s %s // github.com/zengabor/trig
-This command-line tool extends CodeKit (https://codekitapp.com). It remembers
+	fmt.Printf(`
+%s %s // github.com/zengabor/trig
+
+This command-line tool extends CodeKit (codekitapp.com) by remembering
 associations between triggering files (template files) and dependent files
-(files using those template files). After a template file was modified, you
-you call trig, e.g., "trig handle footer.html". Then trig calls CodeKit via 
-AppleScript to process all the files that are including "footer.html".
+(which are including those templates). After a file was modified, you call 
+trig, e.g., "trig handle footer.html". In response trig asks CodeKit via
+AppleScript to process each file that includes "footer.html".
 Associations are stored in %s
 
 Usage:      
