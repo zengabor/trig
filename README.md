@@ -7,8 +7,8 @@ This command-line tool extends [CodeKit](https://codekitapp.com) by remembering 
     trig <command> [<args>...]
     trig set <dependent-file> <triggering-file-1> <triggering-file-2>...
     trig set <dependent-file>
-    trig list
     trig handle <triggering-file>
+    trig list
     trig help
 
 Commands:
@@ -26,9 +26,9 @@ Examples:
 
     $ trig set www/index.go
 
-    $ trig list
-
     $ trig handle templates/two.gohtml
+
+    $ trig list
 
 ## Install
 
